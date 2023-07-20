@@ -1,0 +1,66 @@
+---
+title: "fst_evaluation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries and data:
+```{r}
+library(tidyverse)
+library(wesanderson)
+library(scattermore)
+
+fstResults <- read_tsv(file = "group1_group2.weir.fst")
+colnames(fstResults)[colnames(fstResults) == "WEIR_AND_COCKERHAM_FST"] <- "FST"
+fstResults <- na.omit(fstResults)
+fstResults <- fstResults[order(fstResults$POS),]
+```
+
+# Plot scatterplot:
+```{r}
+meanFST <- mean(fstResults$FST, na.rm = TRUE)
+xPosition <- fstResults$POS[as.integer(nrow(fstResults) * 0.9975)]
+
+ggplot(fstResults, aes(POS, FST)) +
+  scattermore::geom_scattermore(color = wes_palette("Darjeeling1")[5]) +
+  geom_hline(yintercept = meanFST, color = wes_palette("Darjeeling1")[1], ) +
+  annotate("text", label = paste0("Mean = ", round(meanFST, 3)), x = xPosition, y = meanFST + 0.05, color = wes_palette("Darjeeling1")[1])
+```
+
+# Plot histogram:
+```{r}
+ggplot(fstResults, aes(FST)) +
+  geom_histogram(bins = 25, fill = "black") +
+  scale_x_continuous(n.breaks = 10)
+```
+
+# Investigate outliers:
+```{r}
+quantile(fstResults$FST, c(0.975, 0.995), na.rm = TRUE)
+cutoff <- quantile(fstResults$FST, 0.975, na.rm = TRUE)
+```
+
+# Apply cutoff:
+```{r}
+fstResultsCutoff <- fstResults %>% mutate(CUTOFF = ifelse(FST > cutoff, ">0.975", "<0.975"))
+fstResultsCutoff %>% group_by(CUTOFF) %>% tally() # How many in each group
+```
+
+# Plot scatterplot with coloured cutoff:
+```{r}
+ggplot(fstResultsCutoff, aes(POS, FST, color = CUTOFF)) +
+  scattermore::geom_scattermore() +
+  scale_color_manual(values = wes_palette("Darjeeling1")[c(5, 4)]) +
+  geom_hline(yintercept = meanFST, color = wes_palette("Darjeeling1")[1], ) +
+  annotate("text", label = paste0("Mean = ", round(meanFST, 3)), x = xPosition, y = meanFST + 0.05, color = wes_palette("Darjeeling1")[1])
+```
+
+# Plot histogram without outliers:
+```{r}
+ggplot(fstResultsCutoff[fstResultsCutoff$CUTOFF == "<0.975",], aes(FST)) +
+  geom_histogram(bins = 25, fill = "black") +
+  scale_x_continuous(n.breaks = 10)
+```
