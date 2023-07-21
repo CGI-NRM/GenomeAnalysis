@@ -1,0 +1,44 @@
+---
+title: "pca_evaluation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries and data:
+```{r}
+library(tidyverse)
+library(wesanderson)
+
+pcaEigVal <- scan("bsoroensis.eigenval")
+pcaResults <- read_table("bsoroensis.eigenvec", col_names = FALSE)
+pcaResults <- pcaResults[, -1]
+colnames(pcaResults) <- c("Sample", paste0("PC", 1:(ncol(pcaResults)-1)))
+pcaResults <- cbind(pcaResults[, 1], Locality = c("1", "1", "2", "2", "1", "3", "1"), pcaResults[, 2:ncol(pcaResults)])
+pcaResults <- cbind(pcaResults[, 1], Species = c("human", "human", "human", "human", "gorilla", "gorilla", "gorilla"), pcaResults[, 2:ncol(pcaResults)])
+```
+
+# Plot the amount of variation each principle explains:
+```{r}
+pcaEigValPerc <- data.frame(PC = 1:length(pcaEigVal), Percent = pcaEigVal/sum(pcaEigVal)*100)
+pcaEigValPerc$RoundPerc <- paste0(round(pcaEigValPerc$Percent, 1), "%")
+
+eigPalette <- c(wes_palette("Zissou1"), wes_palette("Royal1"))[1:nrow(pcaEigValPerc)]
+
+ggplot(pcaEigValPerc, aes(PC, Percent)) +
+  geom_bar(stat = "identity", fill = eigPalette, width = 0.5) +
+  scale_x_continuous(n.breaks = nrow(pcaEigValPerc)) +
+  geom_text(aes(label = RoundPerc), vjust = 1.5, colour = "white")
+```
+
+# Plot PC1 and PC2:
+```{r}
+ggplot(pcaResults, aes(PC1, PC2, col = Locality, shape = Species)) +
+  geom_point(size = 3) +
+  scale_colour_manual(values = wes_palette("Zissou1")[c(1, 4, 5)]) +
+  coord_equal() +
+  xlab(paste0("PC1 (", signif(pcaEigValPerc$Percent[1], 3), "%)")) + ylab(paste0("PC2 (", signif(pcaEigValPerc$Percent[2], 3), "%)"))
+```
+
