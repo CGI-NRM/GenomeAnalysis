@@ -1,0 +1,36 @@
+---
+title: "general_popgen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries and data:
+```{r}
+library(tidyverse)
+library(vcfR)
+library(wesanderson)
+
+vcfData <- vcfR::read.vcfR("../../Variant_calling/Filtered/bsoroensis_filtered.vcf.gz")
+```
+
+# Genetic differentiation:
+```{r}
+differentiation <- vcfR::genetic_diff(vcfData, factor(c("Group1", "Group1", "Group1", "Group1", "Group2", "Group2", "Group2")), method = "nei")
+```
+
+# Generate values:
+```{r}
+options(scipen = 5)
+
+genDiff <- differentiation[,grepl("Hs_*|Ht|Gst|Gprimest", colnames(differentiation))] %>%
+  colMeans(na.rm = TRUE) %>%
+  round(digits = 3) %>%
+  as.data.frame() %>%
+  set_names("Value")
+
+genDiff
+```
+
