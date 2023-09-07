@@ -1,0 +1,380 @@
+---
+title: "proj_test"
+author: ""
+date: '202X-XX-XX'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(reticulate)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::knit_engines$set(python = reticulate::eng_python)
+```
+
+### Filter the data and run dada2:
+```{r}
+library(MetaBAnalysis)
+library(dada2)
+library(edgeR)
+
+forward <- list.files("../Filtered_data", pattern = "_1.fastq.gz", full.names = TRUE) # Gets all the names ending with _1 with "full" path
+reverse <- list.files("../Filtered_data", pattern = "_2.fastq.gz", full.names = TRUE) # Gets -"- ending with _2
+forwardC <- list.files("../Filtered_data", pattern = "_1.fastq.gz", full.names = FALSE) # Gets all names ending with _1 without full path
+reverseC <- list.files("../Filtered_data", pattern = "_2.fastq.gz", full.names = FALSE) # Gets -"- ending with _2
+filtFs <- file.path("../Filtered_data", "filtered", forwardC) # Creates paths for filtered forward reads
+filtRs <- file.path("../Filtered_data", "filtered", reverseC) # Creates paths for filtered reverse reads
+
+allSamples <- unique(gsub("_outFwd_1.fastq.gz|_outRev_1.fastq.gz", "", forwardC))
+
+OutCombine <- function(dataset, samples) { # Function that summarizes rows of forward and reverse counts in the "out"-object
+  counter <- 0
+    for(i in samples) {
+      if (counter == 0) {
+        output <- data.frame()
+        counter <- counter + 1
+        }
+      output <- rbind(output, S2 = colSums(dataset[grepl(x = rownames(dataset), pattern = i),]))
+      rownames(output)[rownames(output) == "1"] <- i
+      rownames(output)[rownames(output) == "S2"] <- i
+    }
+  names(output) <- c("reads.in", "reads.out")
+  return(output)
+}
+
+out <- dada2::filterAndTrim(forward, filtFs, reverse, filtRs,
+              maxN=0, truncQ=2, rm.phix=TRUE,
+              compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE # maxEE=c(2,3),
+saveRDS(out, file = "out.rds")
+outCombined <- OutCombine(out, allSamples) # Summarize forward and reverse for every sample
+
+forwardCounts2 <- DadaAnalysis(filtFs, filtRs)
+```
+
+### Convert and modify  matrix "forwardCounts2" to DGEList "yAll"
+```{r}
+DFCombine <- function(dataset, samples) {
+  counter <- 0
+    for(i in samples) {
+      if (counter == 0) {
+        output <- data.frame(S2 = rowSums(dataset[, grepl(x = names(dataset), pattern = i)]))
+        counter <- counter + 1
+        names(output)[names(output) == "S2"] <- i
+        next
+        }
+      output <- cbind(output, S2 = rowSums(dataset[, grepl(x = names(dataset), pattern = i)]))
+      names(output)[names(output) == "S2"] <- i
+      }
+  return(output)
+}
+
+MakeDGEList <- function(dataset, samples, forwardSamples) { # Function that combines forward and reverse runs if reverse runs are present
+  datasetDF <- as.data.frame(t(dataset))
+  if(any(grepl("outRev", forwardSamples))) {
+    dfAll <- DFCombine(datasetDF, samples)
+    yAll <- edgeR::DGEList(dfAll)
+  } else {
+    yAll <- edgeR::DGEList(datasetDF)
+  }
+  return(yAll)
+}
+
+yAll <- MakeDGEList(dfForward, allSamples, forwardC)
+saveRDS(yAll, file = "yAll.rds")
+```
+
+### Export fasta-file:
+```{r}
+library(Biostrings)
+
+ExportFasta <- function(countData, fileName) {
+  seqs <- row.names(countData)
+  names(seqs) <- paste("Seq", 1:length(seqs), sep = "_")
+  Biostrings::writeXStringSet(Biostrings::DNAStringSet(seqs, use.names = TRUE), fileName)
+  sprintf("Wrote %s sequences to %s", length(seqs), fileName) 
+}
+
+ExportFasta(yAll, "y_test.fa")
+```
+
+### BLAST-tools (Experimental):
+```{r}
+library(rvest)
+
+OnlineBlaster <- function(nucleotide) { # Function that blasts a given nucleotide
+  blast_url <- "https://blast.ncbi.nlm.nih.gov/Blast.cgi?PROGRAM=blastn&PAGE_TYPE=BlastSearch&LINK_LOC=blasthome"
+  result_url <- "https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=GetSaved&RECENT_RESULTS=on"
+  
+  blast_session <- rvest::session(blast_url)
+  blast_form <- rvest::html_form(blast_session)
+  blast_settings <- rvest::html_form_set(blast_form[[1]], QUERY = nucleotide)
+  
+  for(i in 1:length(blast_settings$fields)) {
+    if(names(blast_settings$fields)[[i]] == "") {
+      blast_settings$fields[[i]]$name <- "filler_name"
+      }
+    }
+  
+  blast_submit <- rvest::session_submit(x = blast_session, form = blast_settings) # submit a blast search with the supplied nucleotide
+  read_blast <- read_html(blast_submit)
+  blast_table <- as.data.frame(html_table(read_blast, fill = TRUE))
+  blast_RID <- blast_table[1, 2] # get the request ID from the blast search
+  print("- Sequence is submitted to BLAST.")
+  print(paste("Request ID:", blast_RID))
+  
+  result_session <- rvest::html_session(result_url)
+  result_form <- rvest::html_form(result_session)
+  result_settings <- rvest::html_form_set(result_form[[1]], RID = blast_RID)
+  result_submit <- rvest::submit_form(session = result_session, form = result_settings) # submit a search for the results using the request ID
+  read_result <- rvest::read_html(result_submit)
+  result_output <- as.data.frame(rvest::html_table(read_result, fill = TRUE)[5])
+  print("Waiting for results from BLAST...")
+  while(ncol(result_output) == 0) { # try to retrieve the results until the blasting is done
+    result_submit <- rvest::submit_form(session = result_session, form = result_settings)
+    read_result <- rvest::read_html(result_submit)
+    result_output <- as.data.frame(rvest::html_table(read_result, fill = TRUE)[5])
+    if(length(html_elements(read_result, "#noRes")) > 0) { # check if there were no hits
+      result_output <- data.frame(Select.for.downloading.or.viewing.reports = "no_hit", Description = "no_hit", Scientific.Name = "no_hit", 
+                                  Common.Name = "no_hit", Taxid = "no_hit", Max.Score = NA, 
+                                  Total.Score = NA, Query.Cover = NA, E.value = NA, 
+                                  Per..Ident = NA, Acc..Len = NA, Accession = "no_hit")
+      result_output <- rbind(result_output, result_output, result_output, result_output, result_output)
+      print("- No hits found for sequence.")
+    }
+  }
+  print("- Results retrieved from BLAST.")
+  return(result_output) # return a data frame of blast results
+}
+
+MultiBlaster <- function(fastaFile, seqNumber = 0, resultNumber = 5, viewChoice = "") { # Function that blasts all sequences in a fasta-file
+  fastaString <- paste(readLines(fastaFile), collapse = "\n")
+  fastaList <- strsplit(fastaString, split = ">")
+  fastaList <- fastaList[[1]][fastaList[[1]] != ""]
+  newLineSplit <- function(inputLine) {
+    sequenceList <- strsplit(inputLine, split = "\n")[[1]]
+    nucSequence <- sequenceList[2:length(sequenceList)]
+    nucSequence <- paste(nucSequence, collapse = "")
+    sequenceList <- c(sequenceList[1], nucSequence)
+    return(sequenceList)
+  }
+  fastaList <- lapply(fastaList, newLineSplit)
+  blastResults <- c()
+  viewResults <- c()
+  if(seqNumber > 0 && length(fastaList) > seqNumber) {
+    fastaList <- fastaList[1:seqNumber]
+  }
+  for(seq in fastaList) {
+    print(paste0("# Sequence ", seq[1], ":"))
+    blastOut <- c()
+    while(length(blastOut) < 2) { # try while in order to try again if http-error gets raised
+      blastOut <- try(OnlineBlaster(seq[2])[1:resultNumber,])
+    }
+    blastOut <- cbind(Sequence = c(seq[1], seq[1], seq[1], seq[1], seq[1]), blastOut)
+    blastResults <- rbind(blastResults, blastOut)
+    
+    if(toupper(viewChoice) == "YES") {
+      viewResults <- rbind(viewResults, blastOut[, -c(2)], c("", "", "", "", "", "", "", "", "", "", "", ""))
+      View(viewResults)
+    }
+    Sys.sleep(2)
+  }
+  return(blastResults)
+}
+
+QSBLAST <- function(searchName, seqNumber = 3) { # Function that takes a species name and blasts its sequences found in "blastResY"
+  QSeqGetter(searchName)
+  blastOut <- MultiBlaster("current_sequence.txt", seqNumber, resultNumber = 10, viewChoice = "yes")
+}
+
+BlastResWriter <- function(inputDF, outName) { # Functios that manipulates the output from "MultiBlaster" in order to fit "BlastParse"
+  inputDF <- inputDF[!grepl("NA", row.names(inputDF)), ]
+  inputDF$Per..Ident <- gsub("%", "", inputDF$Per..Ident)
+  inputDF <- cbind(inputDF[1], inputDF[13], inputDF[11], NA, NA, NA, NA, NA, NA, NA, inputDF[10], inputDF[8], inputDF[6], inputDF[4], inputDF[5])
+  inputDF[is.na(inputDF)] <- "0"
+  write.table(x = inputDF, file = outName, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+}
+
+# blastOut <- MultiBlaster(fastaFile = "y_test.fa")
+# BlastResWriter(blastOut, "y_test.out")
+```
+
+### Parse BLAST-results:
+```{r}
+# The following code assumes that the folder "../../Suppl_data" exists and contains the files "compact_names.csv" and
+# "compact_nodes.csv. If it does not, create the folder in that location and perform the following:
+# 1. $ cd Suppl_data
+# 2. $ wget https://ftp.ncbi.nih.gov/pub/taxonomy/taxdmp.zip
+# 3. $ unzip taxdmp.zip
+# 4. $ awk -F\t '{gsub(/[^[:alnum:]]/," ", $3); if ($7 == "scientific name") {print $1 "\t" $3}}' names.dmp > compact_names.csv
+# 5. $ awk -F\t '{gsub(/[^[:alnum:]]/," ", $3); print $1 "\t" $3 "\t" $5}' nodes.dmp > compact_nodes.csv
+# 6. $ rm *.dmp *.prt *.txt *.zip
+
+compactNameDump <- read.table("../../Suppl_data/compact_names.csv", sep = "\t")
+compactNodeDump <- read.table("../../Suppl_data/compact_nodes.csv", sep = "\t")
+
+GetTaxonomy <- function(searchName, nameDump, nodeDump) {
+  if(grepl("\\.|'", searchName) || length(strsplit(searchName, split = " ")[[1]]) > 2) { # Look out for species with "sp.", quotations or more than two names
+    searchName <- strsplit(searchName, split = " ")[[1]][1]
+  }
+  taxList <- c("unknown", "unknown", "unknown", "unknown", "unknown", "unknown")
+  taxId <- nameDump[searchName == nameDump$V2, 1]
+  if(length(taxId) == 0) { # If searchName does not hit anything
+    return(taxList)
+  }
+  taxId <- taxId[1]
+  while(taxId > 2) {
+    taxId  <- nodeDump[taxId == nodeDump$V1, 2]
+    taxGroup <- nodeDump[taxId == nodeDump$V1, 3]
+    if(taxGroup %in% c("family", "order", "class", "phylum", "kingdom", "superkingdom")) {
+      taxList[match(taxGroup, c("family", "order", "class", "phylum", "kingdom", "superkingdom"))] <- nameDump[match(taxId, nameDump$V1), 2]
+    }
+  }
+  return(taxList)
+}
+
+BlastParse <- function(DGEList, blastRes.out, threshold = 95) {
+  sequences <- data.frame(id = paste("Seq", 1:length(rownames(DGEList)), sep = "_"), seq = row.names(DGEList))
+  blastResult <- read.table(blastRes.out, sep = "\t", quote = "€", stringsAsFactors = FALSE)
+  blastResult$V3 <- as.numeric(blastResult$V3)
+  blastResult$V3[is.na(blastResult$V3)] <- 0 # If the input file contained empty values, assign them to 0
+  blastResult <- blastResult[blastResult$V3 > threshold,]
+  names(blastResult) <- c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "staxids", "sscinames", "scomnames")
+  blastResultUn <- blastResult[!duplicated(blastResult$qseqid),] # Retain only best hits
+  GetFirstItem <- function(name) { # Function that returns the first of items separated by semicolons
+    return(strsplit(as.character(name), split = ";")[[1]][1])
+  }
+  blastResultUn$staxids <- unlist(lapply(blastResultUn$staxids, GetFirstItem))
+  blastResultUn$sscinames <- unlist(lapply(blastResultUn$sscinames, GetFirstItem))
+  blastResultUn$scomnames <- unlist(lapply(blastResultUn$scomnames, GetFirstItem))
+  taxonomy <- list()
+  for(i in unique(blastResultUn$sscinames)) { # Get taxonomy locally
+    print(i) # Print current taxa
+    taxonomy[[i]] <- GetTaxonomy(i, nameDump = compactNameDump, nodeDump = compactNodeDump)
+  }
+  taxonomy <- do.call("rbind", taxonomy)
+  taxonomy <- cbind(rownames(taxonomy), taxonomy)
+  blastTax <- merge(blastResultUn, taxonomy, by.x = "sscinames", by.y = "V1", all.x = TRUE)
+  blastTax <- blastTax[, c(2,3,4,12, 1, 16:21)]
+  colnames(blastTax) <- c("id", "besthit", "identity", "e-value", "species", "family", "order", "class", "phylum", "kingdom", "superkingdom")
+  seqTax <- merge(sequences, blastTax, by.x = "id", by.y = "id", all.x = TRUE)
+  seqTax <- seqTax[order(gsub("[^0-9]+", "", seqTax$id)),]
+  seqTax$family <- factor(seqTax$family)
+  seqTax$order <- factor(seqTax$order)
+  seqTax$class <- factor(seqTax$class)
+  seqTax$phylum <- factor(seqTax$phylum)
+  seqTax$kingdom <- factor(seqTax$kingdom)
+  seqTax$superkingdom <- factor(seqTax$superkingdom)
+  return(seqTax)
+}
+
+blastResY <- BlastParse(yAll, "y_test.out")
+saveRDS(blastResY, file = "blastResY.rds")
+```
+
+### Create Summaryfiles from the BLAST-results:
+```{r}
+allResults <- SumRes(blastRes = blastResY, counts = yAll$counts, taxgroup = "Fish") # Summarize a list of result objects
+```
+
+### Functions:
+```{r}
+RenameSpecies <- function(oldName, newName, dataFrame) {
+  dataFrame[grepl(oldName, dataFrame[,1]),1] <- newName
+  return(dataFrame)
+}
+
+CombineSpecies <- function(species1, species2, dataFrame) {
+  speciesSum <- dataFrame[grepl(species1, dataFrame[,4]),5:ncol(dataFrame)] + dataFrame[grepl(species2, dataFrame[,4]),5:ncol(dataFrame)]
+  speciesSum <- cbind(dataFrame[grepl(species1, dataFrame[,4]),1:4], speciesSum)
+  names(speciesSum)[1:4] <- names(dataFrame[1:4])
+  dataFrame <- dataFrame[!grepl(species1, dataFrame[,4]),]
+  dataFrame <- dataFrame[!grepl(species2, dataFrame[,4]),]
+  dataFrame <- rbind(dataFrame, speciesSum)
+  return(dataFrame)
+}
+
+QSeqGetter <- function(species_name) {
+  species_seq <- paste0(">", blastResY[grepl(species_name, blastResY$species),1], "\n", blastResY[grepl(species_name, blastResY$species),2])
+  writeLines(species_seq, "current_sequence.txt")
+  file.edit("current_sequence.txt")
+}
+
+RemoveLowFreqSeqs <- function(dataset, threshold, subValue = 0) {
+  output <- data.frame(dataset[, 1:4])
+  for(column in 5:ncol(dataset)){
+    ratio <- dataset[, column] / sum(dataset[, column]) * 100
+    dataset[ratio < threshold, column] <- subValue
+    output <- cbind(output, dataset[, column])
+  }
+  colnames(output) <- colnames(dataset)
+  return(output)
+}
+```
+
+### Curate the results:
+```{r}
+library(MetaBAnalysis)
+{
+  groupNotes <- allResults$TargetGroup
+  # groupNotes <- RenameSpecies("old latin name", "new latin name", groupNotes)
+  groupNotes <- groupNotes[order(rowSums(groupNotes[,-1]), decreasing = TRUE),]
+  groupNotes <- cbind(Percent_all = SpeciesPercent(groupNotes), groupNotes)
+  groupNotes <- cbind(Swedish = MetaBAnalysis::TranslateTaxa(groupNotes$Species), groupNotes)
+  # groupNotes[grepl("latin name", groupNotes$Species),1] <- "new common name"
+  groupNotes <- cbind(Notes = c(
+                                # edit here to correspond to the number of species in the groupNotes-object
+                                "", "", "", "", "",
+                                "", "", "", "", "",
+                                "", "", "", "", "",
+                                "", "", "", "", ""
+                                ), groupNotes) # add notes for different species
+  # groupNotes <- CombineSpecies("species to be kept", "species to be absorbed", groupNotes)
+  groupNotes <- groupNotes[order(rowSums(groupNotes[,-c(1, 2, 3, 4)]), decreasing = TRUE),]
+  # groupNotes <- groupNotes[!grepl("drop", groupNotes$Notes),] # Drop all species that has the word "drop" in their notes
+  # groupNotes <- RemoveLowFreqSeqs(groupNotes, 0.5) # remove species within samples below a threshold
+  # groupNotes <- groupNotes[groupNotes$Percent_all >= 0.5,] # remove species from all samples below a threshold
+  groupClean <- groupNotes[,-c(1, 3)]
+  columnNames <- colnames(groupClean)
+  columnNames[grepl("Species", columnNames)] <- "Latin"
+  # columnNames[grepl("old sample name", columnNames)] <- "new sample name"
+  names(groupClean) <- columnNames
+  allResults$Clean <- groupClean
+}
+
+saveRDS(allResults, "allResults.rds") # save the clean object to be used in the report
+```
+
+### Generate information about the sequences for use in report:
+```{r}
+library(rvest)
+
+getRawSeqs <- function(searchFolder = "../Pre_analysis", searchPattern = "_fastqc.html") { # Function that extracts raw reads from fastqc reports
+  rawPaths <- list.files(path = searchFolder, pattern = searchPattern, full.names = TRUE)
+  rawFiles <- lapply(rawPaths, rvest::read_html)
+  getRawTable <- function(inFile) {
+    inTable <- as.data.frame(rvest::html_table(inFile, fill = TRUE)[1]) # select first table in report
+    outTable <- data.frame(filename = inTable[inTable$Measure == "Filename", 2], nreads = inTable[inTable$Measure == "Total Sequences", 2])
+    return(outTable)
+    }
+  rawTables <- lapply(rawFiles, getRawTable)
+  allTable <- do.call("rbind", rawTables)
+  allTable$nreads <- as.numeric(allTable$nreads)
+  return(allTable)
+}
+
+rawSeqsTable <- getRawSeqs()
+
+rawSeqs <- rawSeqsTable$nreads
+
+sum(rawSeqs)
+min(rawSeqs)
+max(rawSeqs)
+
+primerSeqs <- sum(out[, 1])
+primerSeqs / sum(rawSeqs) # ratio of sequences left after primer trimming and filtration
+
+groupSeqs <- sum(groupClean[, -c(1, 2)])
+groupSeqs / primerSeqs # ratio of filtered sequences belonging to target group
+
+sampleMetaData <- list(rawSeqs = rawSeqs, primerSeqs = primerSeqs, groupSeqs = groupSeqs)
+saveRDS(sampleMetaData, "sampleMetaData.rds")
+```

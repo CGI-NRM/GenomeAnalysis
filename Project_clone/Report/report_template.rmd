@@ -1,0 +1,184 @@
+---
+title: ""
+author: ""
+date: ""
+header-includes:
+   - \usepackage{geometry}
+   - \usepackage{fancyhdr}
+   - \usepackage[swedish]{babel}
+   - \usepackage[default]{lato}
+   - \usepackage{float}
+   - \pagestyle{fancy}
+   - \fancyhf{}
+   - \lhead{\includegraphics[height=1cm]{./NRM_figures/naturhistoriska-riksmuseet2.png}}
+   - \rhead{Diarienummer 4.1-XXX-20XX}
+   - \chead{Månad 20XX}
+   - \lfoot{}
+   - \usepackage{xcolor}
+   - \definecolor{forest}{RGB}{60, 122, 94}
+   - \definecolor{forest2}{RGB}{20, 72, 54}
+   - \usepackage{afterpage}
+output: pdf_document
+bibliography: references.bib
+biblio-style: unsrt
+---
+```{r setup, include=FALSE, cache = FALSE}
+require("knitr")
+## setting working directory
+#opts_knit$set(root.dir = "~/Desktop/InsectGenome")
+knitr::opts_chunk$set(eval = TRUE, echo = FALSE, warning = FALSE)
+options(knitr.kable.NA = '')
+```
+
+```{r setup2, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(cowplot)
+library(kableExtra)
+library(readxl)
+library(wesanderson)
+```
+
+```{r}
+# User set variables:
+projectTitle <- "eDNA-detektering av fisk" # The title of this report
+projectId <- "4.1-XXX-20XX" # Diarienummer assigned to this project
+authorName <- "FIRST LAST" # Name of the author of this report
+
+samplesNo <- "NUMBER" # Number of samples analysed
+
+```
+
+\begin{titlepage}
+\center
+\vspace{2cm}
+NATURHISTORISKA RIKSMUSEET • FORSKAR, BEVARAR OCH FÖRKLARAR • NRM.SE \\
+	\colorbox{forest2}{
+		\parbox[t]{0.93\textwidth}{ % Outer full width box
+			\parbox[t]{0.91\textwidth}{ % Inner box for inner right text margin
+				\center % Right align the text
+				\fontsize{30pt}{40pt}\selectfont % Title font size, the first argument is the font size and the second is the line spacing, adjust depending on title length
+				\vspace{0.7cm} % Space between the start of the title and the top of the grey box
+				\textcolor{white}{
+				`r projectTitle`}\\
+				\vspace{0.5cm} 
+				\Large
+				\textcolor{white}{
+				Diarienummer NRM `r projectId`}\\
+				\vspace{0.7cm} % Space between the end of the title and the bottom of the grey box
+			}
+		}
+	}
+   \vfill % Space between the title box and author information
+	
+	%------------------------------------------------
+	%	Author name and information
+	%------------------------------------------------
+	\center
+	\includegraphics[width=330mm]{./NRM_figures/nrm-logo-staende-svensk-fullfarg}
+	\vspace{2cm}
+	%\parbox[t]{0.93\textwidth}{ % Box to inset this section slightly
+	%	\raggedleft % Right align the text
+	%	\large % Increase the font size
+	%	{\Large `r authorName`}\\[4pt] % Extra space after name
+	%	Centrum för genetisk identifiering\\
+	%	}
+
+\end{titlepage}
+
+Centrum för genetisk identifiering (CGI) vid Naturhistoriska riksmuseet är en
+uppdragsfinansierad verksamhet som erbjuder myndigheter och organisationer hjälp
+med genetiska analyser av biologiskt material.
+
+```{r}
+FixMillion <- function(inNumber) {
+  smallNumber <- inNumber / 1000000
+  roundNumber <- round(smallNumber, 1)
+  outNumber <- gsub("\\.", ",", roundNumber)
+  return(outNumber)
+}
+
+FixPercent <- function(inNumber) {
+  bigNumber <- inNumber * 100
+  roundNumber <- round(bigNumber, 0)
+  outNumber <- gsub("\\.", ",", roundNumber)
+  return(outNumber)
+}
+
+```
+
+## Uppdrag
+CGI har fått i uppdrag 
+
+## Material och metoder
+Prover togs av 
+
+### Molekylära metoder
+DNA-extraktion utfördes med en Kingfisher flex extraktionsrobot och ett "Omega
+MagBind Blood and Tissue" DNA-extraktionskit enligt beskrivning från
+tillverkaren. 
+
+### Bioinformatiska analysmetoder
+Från rådata trimmades primersekvenser bort med hjälp av programmet
+fastp [] och kvarvarande data mappades mot referensgenom med bwa2 [].
+
+## Resultat
+Från DNA extraktionerna gjordes sekvenseringsbibliotek som
+sekvenserades med pair-end 150 bp läsningar av Novogene på ett NovaSeq-instrument.
+
+### Mitokondriegenom
+Det totala antalet sekvenser efter sekvensering av proverna var `r totalSeqs` miljoner,
+där enskilda prov hade mellan `r minSeqs` miljoner och `r maxSeqs` miljoner sekvenser. Omkring `r primerPercent`% av sekvenserna
+innehöll förväntade primers och var av tillräckligt god kvalitet för att
+
+
+```{r tab2, echo=FALSE}
+
+fixedCaption <- paste("Tabell över latinska och svenska namn på de arter av fisk som identifierats i proverna. Om sekvenser ej kunde bestämmas till exakt art anges i dessa fall ", "sp.", " eller vilka två arter det kan handla om.", sep = "'")
+
+kable(groupSpecies, "latex",
+      caption = fixedCaption, 
+      booktabs = T, escape = F)%>%
+      kable_styling(latex_options = "hold_position")%>%
+      column_spec(1, italic = TRUE)
+```
+
+```{r fig1, fig.height=14, fig.width=11, echo=FALSE, fig.cap="Fördelning i procent av antal sekvenser från olika arter av fisk i proverna. Den översta stapeln \'Totalt\' visar en sammanslagning av alla dessa sekvenser från alla prover."}
+
+
+```
+
+```{r include=FALSE}
+library(gridExtra)
+
+indplots <- list()
+for(i in names(groupDataFrame[3:ncol(groupDataFrame)])) {
+   indplots[[i]] <- seqPlot2(data = groupDataFrame, sample = i, title = i, arter = "Swedish")
+}
+```
+
+\newpage
+
+## Sammanfattning
+
+
+```{r echo=FALSE, fig.height=13, fig.width=9, fig.cap="Antal sekvenser från varje art av fisk i enskilda prover."}
+# options(scipen = 5)
+grid.arrange(grobs = indplots[1:6], ncol = 1)
+```
+
+## Projektinformation
+Analysdata och resultat lagras tills vidare hos NRM. Vid eventuella
+framtida frågor i detta ärende kontakta NRM på antingen cgi@nrm.se
+eller registrator@nrm.se och ange diarienummer i mailets
+ämnesrad. 
+
+Rådata och analysresultat kommer efter avslutat projekt
+göras publikt och fritt tillgängligt på European Nucleotide Archive
+(ENA) https://www.ebi.ac.uk/ena och https://www.gbif.se
+
+
+\newpage
+
+## Referenser 
