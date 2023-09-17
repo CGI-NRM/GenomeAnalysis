@@ -1,7 +1,7 @@
 #! /bin/bash -l
 #SBATCH -A PROJECT
 #SBATCH -p core
-#SBATCH -n 20
+#SBATCH -n 16
 #SBATCH -t 1:59:00
 #SBATCH -J fastp_filter
 
