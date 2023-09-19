@@ -1,12 +1,12 @@
 #! /bin/bash -l
-#SBATCH -A PROJECT
 #SBATCH -p core
 #SBATCH -n 16
-#SBATCH -t 1:59:00
+#SBATCH -t 3:00:00
 #SBATCH -J fastp_filter
 
 # go to this directory
-cd /path/to/Raw_data
+cd $PROJECT_DIR
+cd Raw_data/
 
 # load software modules
 module load bioinfo-tools
