@@ -1,12 +1,12 @@
 #! /bin/bash -l
-#SBATCH -A PROJECTS
 #SBATCH -p core
 #SBATCH -n 10
 #SBATCH -t 10:00:00
 #SBATCH -J variant_calling
 
-# go to this directory:
-cd /path/to/Variant_calling
+# go to the correct directory:
+cd $PROJECT_DIR
+cd Variant_calling/
 
 # load software modules:
 module load bioinfo-tools
