@@ -1,14 +1,14 @@
 #! /bin/bash -l
-#SBATCH -A PROJECT
 #SBATCH -p core
 #SBATCH -n 10
 #SBATCH -t 10:00:00
 #SBATCH -J fst_calculation
 
-# go to this directory
-cd /path/to/Popgen/Fst_calculation
+# go to the correct directory:
+cd $PROJECT_DIR
+cd Popgen/Fst_calculation/
 
-# load software modules
+# load software modules:
 module load bioinfo-tools
 module load vcftools
 
