@@ -1,12 +1,12 @@
 #! /bin/bash -l
-#SBATCH -A PROJECT
 #SBATCH -p core
 #SBATCH -n 20
 #SBATCH -t 2:50:00
 #SBATCH -J bwa_mem2_map
 
 # go to directory containing filtered data:
-cd path/to/Filtered_data
+cd $PROJECT_DIR
+cd Filtered_data/
 
 # load software modules:
 module load bioinfo-tools
