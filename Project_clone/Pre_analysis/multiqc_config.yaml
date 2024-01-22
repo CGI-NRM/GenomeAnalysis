@@ -1,0 +1,34 @@
+show_analysis_paths: False
+show_analysis_time: False
+
+extra_fn_clean_exts:
+  - "_flagstat.txt"
+  - "_stats.txt"
+  - type: regex
+    pattern: "_.fastp"
+    #    pattern: "_L[1-4]_.fastp"
+#  - "_L1_"
+#  - "_L2_"
+#  - "_L3_"
+#  - "_L4_"
+
+module_order:
+  - fastqc
+  - fastp
+  - fastq_screen
+  - samtools
+
+table_columns_visible:
+  Samtools:
+    flagstat_total: True
+    non-primary_alignments: False
+    raw_total_sequences: False
+    reads_mapped: False
+  FastQC: False
+
+table_columns_placement:
+  Samtools:
+    flagstat_total: 1010
+    mapped_passed: 1020
+
+fastqscreen_simpleplot: true
