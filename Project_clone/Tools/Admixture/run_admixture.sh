@@ -1,9 +1,18 @@
-# First copy the bed-files from the PLINK-run to this folder.
+# First copy .bed, .bim and .fam files from the PCA-run to same folder.
 
-awk '{$1="0";print $0}' pphocoena_1.bim > pphocoena_1.bim.tmp
-mv pphocoena_1.bim.tmp pphocoena_1.bim
+# Load admixture:
+module load bioinfo-tools
+module load ADMIXTURE
 
+# Find bim-file in directory:
+bim_file=$(ls *.bim | head -n 1)
+
+# Prepare bim-file:
+awk '{$1="0";print $0}' $bim_file > $bim_file.tmp
+mv $bim_file.tmp $bim_file
+
+# Run admixture for every k-value:
 for i in {1..5}
 do
-admixture --cv pphocoena_1.bed $i > log$i.out
+  admixture --cv ${bim_file/".bim"/".bed"} $i > log$i.out
 done
