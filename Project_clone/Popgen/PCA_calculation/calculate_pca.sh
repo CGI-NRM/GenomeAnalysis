@@ -12,5 +12,11 @@ cd Popgen/PCA_calculation/
 module load bioinfo-tools
 module load plink
 
-# calculate PCA (change bsoroensis to your group):
-plink --vcf ../../Variant_calling/Filtering/filtered_vcf_name.vcf.gz --double-id --allow-extra-chr --set-missing-var-ids @:# --extract bsoroensis.prune.in --make-bed --pca --out bsoroensis
+# prepare file names:
+vcf_folder="$PROJECT_DIR/Variant_calling/Filtering/"
+vcf_file=$(ls $vcf_folder*.vcf.gz | head -1)
+out_file=${vcf_file/$vcf_folder/""}
+out_file=${out_file/".vcf.gz"/""}
+
+# calculate PCA:
+plink --vcf $vcf_file --double-id --allow-extra-chr --set-missing-var-ids @:# --extract $out_file.prune.in --make-bed --pca --out $ORGANISM"_1"
