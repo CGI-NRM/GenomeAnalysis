@@ -12,7 +12,8 @@ awk '{$1="0";print $0}' $bim_file > $bim_file.tmp
 mv $bim_file.tmp $bim_file
 
 # Run admixture for every k-value:
-for i in {1..5}
+for i in {1..5} # for k-values 1 to 5
 do
-  admixture --cv ${bim_file/".bim"/".bed"} $i > log$i.out
+  printf "\nRun $i:\n"
+  admixture --cv ${bim_file/".bim"/".bed"} $i | tee log$i.out
 done
