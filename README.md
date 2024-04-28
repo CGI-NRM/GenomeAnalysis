@@ -1,2 +1,5 @@
-# GenomeAnalysis
-Analysis of genome data at CGI most information will initially be added to the wiki of this project. 
+# Genome Analysis
+To set environmental variables, edit the file "set_variables.sh", and run:
+```bash
+source set_variables.sh
+```
