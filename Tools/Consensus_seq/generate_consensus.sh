@@ -6,7 +6,7 @@
 
 # go to the correct directory:
 cd $PROJECT_DIR
-cd Consensus_seq/
+cd Tools/Consensus_seq/
 
 # load software modules:
 module load bioinfo-tools

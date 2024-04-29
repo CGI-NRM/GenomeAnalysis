@@ -1,4 +1,7 @@
-# First copy .bed, .bim and .fam files from the PCA-run to same folder.
+# Copy .bed, .bim and .fam files from the PCA-run to this folder:
+cp ../PCA_calculation/*.bed .
+cp ../PCA_calculation/*.bim .
+cp ../PCA_calculation/*.fam .
 
 # Load admixture:
 module load bioinfo-tools
