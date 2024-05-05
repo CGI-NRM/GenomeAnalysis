@@ -6,7 +6,7 @@
 
 # go to this directory
 cd $PROJECT_DIR
-cd Raw_data/
+cd 0_Raw_data/
 
 # load software modules
 module load bioinfo-tools
@@ -20,5 +20,5 @@ do
 	html="${read1/1.fq.gz/.html}"
 	output1="filtered_${read1}"
 	output2="filtered_${read2}"
-	fastp --json $json --html $html --overrepresentation_analysis --length_required 40 --thread 20 --in1 $read1 --in2 $read2 --out1 ../Filtered_data/$output1 --out2 ../Filtered_data/$output2
+	fastp --json $json --html $html --overrepresentation_analysis --length_required 40 --thread 20 --in1 $read1 --in2 $read2 --out1 ../1_Filtered_data/$output1 --out2 ../1_Filtered_data/$output2
 done

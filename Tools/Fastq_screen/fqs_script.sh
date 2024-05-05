@@ -14,4 +14,4 @@ module load fastq_screen
 module load bowtie2
 
 # run fastq_screen:
-fastq_screen --conf fastq_screen.conf --aligner bowtie2 --tag ../Filtered_data/*.fq.gz 
+fastq_screen --conf fastq_screen.conf --aligner bowtie2 --tag ../1_Filtered_data/*.fq.gz 

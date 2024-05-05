@@ -6,7 +6,7 @@
 
 # go to the correct directory:
 cd $PROJECT_DIR
-cd Popgen/Fst_calculation/
+cd 4_Popgen/Fst_calculation/
 
 # load software modules:
 module load bioinfo-tools
@@ -14,4 +14,4 @@ module load vcftools
 
 ## calculate fst:
 # group1.txt and group2.txt are text files with sample names from each group
-vcftools --gzvcf ../../Variant_calling/Filtered/filtered_vcf_name.vcf.gz --weir-fst-pop group1.txt --weir-fst-pop group2.txt --out ./group1_group2
+vcftools --gzvcf ../../3_Variant_calling/Filtered/filtered_vcf_name.vcf.gz --weir-fst-pop group1.txt --weir-fst-pop group2.txt --out ./group1_group2

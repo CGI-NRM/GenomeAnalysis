@@ -1,12 +1,12 @@
 #! /bin/bash -l
-#SBATCH -A PROJECT
 #SBATCH -p core
 #SBATCH -n 10
 #SBATCH -t 10:00:00
 #SBATCH -J vcf_filtering
 
 # go to this directory:
-cd /path/to/Variant_calling/Filtered
+cd $PROJECT_DIR
+cd 3_Variant_calling/Filtering
 
 # load software modules:
 module load bioinfo-tools

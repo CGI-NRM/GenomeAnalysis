@@ -1,1 +1,1 @@
-samtools faidx ../Reference/reference_name.fna
+samtools faidx ../0_Reference/reference_name.fna

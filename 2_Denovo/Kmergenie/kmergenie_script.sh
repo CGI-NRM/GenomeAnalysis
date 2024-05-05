@@ -7,14 +7,14 @@
 
 # navigate to the correct directory:
 cd $PROJECT_DIR
-cd Denovo/Kmergenie/
+cd 2_Denovo/Kmergenie/
 
 # load software modules:
 module load bioinfo-tools
 module load KmerGenie
 
 # find fastq-files:
-ls -1 ../../Filtered_data/*fq.gz > fastq_files.txt
+ls -1 ../../1_Filtered_data/*fq.gz > fastq_files.txt
 
 # run kmergenie:
 kmergenie fastq_files.txt

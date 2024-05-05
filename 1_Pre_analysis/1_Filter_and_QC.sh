@@ -6,7 +6,7 @@
 
 # go to this directory
 cd $PROJECT_DIR
-cd Pre_analysis
+cd 1_Pre_analysis
 
 # load software modules
 module load bioinfo-tools
@@ -14,7 +14,7 @@ module load FastQC
 module load fastp
 module load MultiQC
 
-raw_folder="../Raw_data/"
+raw_folder="../0_Raw_data/"
 
 # Create output folder if it does not exist:
 mkdir -p ./QC_files/
@@ -37,7 +37,7 @@ do
 	fastp --json $json --html $html --overrepresentation_analysis --length_required 40 --thread 20 --in1 $read1 --in2 $read2 --out1 $output1 --out2 $output2
 done
 
-mv filtered_* ../Filtered_data
+mv filtered_* ../1_Filtered_data
 
 # Run multiqc on all log-files:
 #multiqc ./QC_files
