@@ -6,7 +6,7 @@
 
 # go to directory containing filtered data:
 cd $PROJECT_DIR
-cd Filtered_data/
+cd 1_Filtered_data/
 
 # load software modules:
 module load bioinfo-tools
@@ -20,5 +20,5 @@ do
 	outname=$(echo $read1 | cut -d "E" -f 1)
 	# json="${read1/1.fq.gz/.json}"
 	# html="${read1/1.fq.gz/.html}"
-	bwa-mem2 mem ../Reference/ref -t 20 $read1 $read2 | samtools sort --threads 20 -o ../Mapped/$outname.bam -
+	bwa-mem2 mem ../0_Reference/ref -t 20 $read1 $read2 | samtools sort --threads 20 -o ../2_Mapped/$outname.bam -
 done

@@ -7,11 +7,11 @@
 
 # Navigate to the correct directory:
 cd $PROJECT_DIR
-cd Denovo/
+cd 2_Denovo/
 
 # load software modules:
 module load bioinfo-tools
 module load abyss
 
 # run denovo assembly
-abyss-pe k=113 name=sample1 B=100G in='../Filtered_data/sample1_1.fq.gz ../Filtered_data/sample1_2.fq.gz'
+abyss-pe k=113 name=sample1 B=100G in='../1_Filtered_data/sample1_1.fq.gz ../1_Filtered_data/sample1_2.fq.gz'

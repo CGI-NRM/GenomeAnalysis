@@ -6,7 +6,7 @@
 
 # go to the correct directory:
 cd $PROJECT_DIR
-cd Reference/
+cd 0_Reference/
 
 # load software modules:
 module load bioinfo-tools

@@ -6,11 +6,11 @@
 
 # go to the correct directory:
 cd $PROJECT_DIR
-cd Variant_calling/
+cd 3_Variant_calling/
 
 # load software modules:
 module load bioinfo-tools
 module load bcftools
 
 # call variants:
-bcftools mpileup -a AD,DP,SP -Ou -f ../Reference/reference_name.fna ../Mapped/*.bam | bcftools call -f GQ,GP -v -mO z -o ./output_name.vcf.gz 
+bcftools mpileup -a AD,DP,SP -Ou -f ../0_Reference/reference_name.fna ../2_Mapped/*.bam | bcftools call -f GQ,GP -v -mO z -o ./output_name.vcf.gz 
